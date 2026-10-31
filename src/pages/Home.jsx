@@ -3,12 +3,17 @@ import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { shoes } from "../data/shoes";
 
+
 const heroSlides = [
-  "/hero/hero1.jpg",
-  "/hero/hero2.jpg",
-  "/hero/hero3.jpg",
-  "/hero/hero4.jpg",
+  `${import.meta.env.BASE_URL}hero/hero1.jpg`,
+  `${import.meta.env.BASE_URL}hero/hero2.jpg`,
+  `${import.meta.env.BASE_URL}hero/hero3.jpg`,
+  `${import.meta.env.BASE_URL}hero/hero4.jpg`,
+    `${import.meta.env.BASE_URL}hero/hero5.jpg`,
+    `${import.meta.env.BASE_URL}hero/hero6.jpg`,
+    `${import.meta.env.BASE_URL}hero/hero7.jpg`,
 ];
+
 
 export default function Home() {
   const [search, setSearch] = useState("");
