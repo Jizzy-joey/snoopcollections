@@ -1,6 +1,12 @@
 
 import { useState } from "react";
 import { Link } from "react-router-dom";
+
+import { supabase } from "../lib/supabase";
+import { useCart } from "../context/CartContext";
+import { shoes } from "../data/shoes";
+import { getImageUrl } from "../utils/imageUrl";
+
 import {
   STORE,
   isWhatsAppReady,
@@ -8,56 +14,82 @@ import {
   createWhatsAppLink,
   formatMoney,
 } from "../config/store";
-import { getImageUrl } from "../utils/imageUrl";
-import { shoes } from "../data/shoes";
 
 const ORDER_KEY = "snoopcollections-checkout";
 
+// Read the order created during checkout.
 function loadOrder() {
   try {
     const saved = sessionStorage.getItem(ORDER_KEY);
     return saved ? JSON.parse(saved) : null;
-  } catch {
+  } catch (error) {
+    console.error("Could not load checkout:", error);
     return null;
+  }
+}
+
+// Convert a shoe image path into a full URL.
+// Works with Vercel and GitHub Pages.
+function getPublicImageUrl(image) {
+  if (!image) return "";
+
+  try {
+    const path = getImageUrl(image);
+    return new URL(path, window.location.origin).href;
+  } catch {
+    return "";
   }
 }
 
 export default function Payment() {
   const [order] = useState(loadOrder);
-  const [copied, setCopied] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState("");
+  const [submitted, setSubmitted] = useState(false);
+  const [whatsappUrl, setWhatsappUrl] = useState("");
   const [transferReference, setTransferReference] =
     useState("");
-  const [error, setError] = useState("");
 
+  const { clearCart } = useCart();
+
+  // No checkout information available.
   if (
     !order ||
+    !order.customer ||
     !Array.isArray(order.items) ||
-    order.items.length === 0 ||
-    !order.customer
+    order.items.length === 0
   ) {
     return (
       <main className="checkout-page">
-        <div className="checkout-empty">
+        <section className="checkout-panel">
           <h1>No Order Found</h1>
-          <p>Please complete checkout first.</p>
+          <p>
+            Please add sneakers to your basket and
+            complete checkout first.
+          </p>
           <Link to="/cart" className="checkout-btn">
-            Return to Cart
+            Return to Basket
           </Link>
-        </div>
+        </section>
       </main>
     );
   }
 
-  // Load current sneaker prices.
+  // Refresh sneaker information from the catalogue.
   const items = order.items.map((item) => {
     const shoe = shoes.find(
       (product) =>
         String(product.id) === String(item.id)
     );
 
+    const image = shoe?.image || item.image;
+
     return {
       ...item,
-      price: shoe ? shoe.price : item.price,
+      name: shoe?.name || item.name,
+      price: shoe?.price ?? item.price,
+      image,
+      imageUrl: getPublicImageUrl(image),
     };
   });
 
@@ -75,15 +107,14 @@ export default function Payment() {
   const subtotal = hasPrices
     ? items.reduce(
         (sum, item) =>
-          sum + item.price * Number(item.quantity),
+          sum +
+          item.price * Number(item.quantity),
         0
       )
-    : null;
+    : 0;
 
   const deliveryFee = STORE.deliveryFee;
-  const total = hasPrices
-    ? subtotal + deliveryFee
-    : null;
+  const total = subtotal + deliveryFee;
 
   const isTransfer =
     order.paymentMethod === "transfer";
@@ -91,82 +122,70 @@ export default function Payment() {
   const whatsappReady = isWhatsAppReady();
   const bankReady = isBankReady();
 
-  const customer = order.customer;
-
   // =====================================
-  // BUILD WHATSAPP MESSAGE
+  // BUILD WHATSAPP ORDER MESSAGE
   // =====================================
   function buildMessage() {
     const productLines = items
-      .map((item, index) =>
-        [
+      .map((item, index) => {
+        return [
           `${index + 1}. ${item.name}`,
           `Size: EU ${item.size}`,
           `Quantity: ${item.quantity}`,
-          `Unit Price: ${
-            hasPrices
-              ? formatMoney(item.price)
-              : "To be confirmed"
-          }`,
-          `Item Total: ${
-            hasPrices
-              ? formatMoney(
-                  item.price * Number(item.quantity)
-                )
-              : "To be confirmed"
-          }`,
-        ].join("\n")
-      )
+          `Unit Price: ${formatMoney(item.price)}`,
+          `Item Total: ${formatMoney(
+            item.price * Number(item.quantity)
+          )}`,
+          `Shoe Picture: ${item.imageUrl}`,
+        ].join("\n");
+      })
       .join("\n\n");
 
     return [
       `Hello ${STORE.name}!`,
       "",
-      isTransfer
-        ? "I would like to submit a bank transfer confirmation for manual verification."
-        : "I would like to place an order.",
+      "I would like to place an order.",
       "",
       `ORDER REFERENCE: ${order.reference}`,
       "",
       "CUSTOMER INFORMATION",
-      `Name: ${customer.fullName}`,
-      `Phone: ${customer.phone}`,
-      `Email: ${customer.email}`,
+      `Name: ${order.customer.fullName}`,
+      `Phone: ${order.customer.phone}`,
+      `Email: ${
+        order.customer.email || "Not provided"
+      }`,
       "",
       "DELIVERY INFORMATION",
-      `Address: ${customer.address}`,
-      `City: ${customer.city}`,
-      `State: ${customer.state}`,
-      `Notes: ${customer.notes || "None"}`,
+      `Address: ${order.customer.address}`,
+      `City: ${order.customer.city}`,
+      `State: ${order.customer.state}`,
+      `Notes: ${
+        order.customer.notes || "None"
+      }`,
       "",
-      "ORDER ITEMS",
+      "SNEAKERS ORDERED",
       productLines,
       "",
       "ORDER BREAKDOWN",
-      `Subtotal: ${
-        hasPrices
-          ? formatMoney(subtotal)
-          : "To be confirmed"
-      }`,
-      `Delivery: ${formatMoney(deliveryFee)}`,
-      `TOTAL: ${
-        hasPrices
-          ? formatMoney(total)
-          : "To be confirmed"
-      }`,
+      `Subtotal: ${formatMoney(subtotal)}`,
+      `Delivery Fee: ${formatMoney(deliveryFee)}`,
+      `TOTAL: ${formatMoney(total)}`,
       "",
+      `Payment Method: ${
+        isTransfer
+          ? "Bank Transfer"
+          : "WhatsApp Order"
+      }`,
       ...(isTransfer
         ? [
-            "BANK TRANSFER CONFIRMATION",
-            `Transaction Reference: ${
+            `Transfer Reference: ${
               transferReference.trim() ||
-              "Not supplied"
+              "Not provided"
             }`,
-            "Payment Status: Awaiting verification",
+            "Payment awaiting manual verification.",
           ]
         : [
-            "Please confirm availability and",
-            "order details before payment.",
+            "Please confirm availability and payment instructions.",
           ]),
       "",
       "Thank you!",
@@ -174,28 +193,91 @@ export default function Payment() {
   }
 
   // =====================================
-  // OPEN WHATSAPP
+  // SAVE ORDER TO SUPABASE
   // =====================================
-  function openWhatsApp() {
+  async function saveOrderToSupabase() {
+    const payload = {
+      reference: order.reference,
+
+      customer: {
+        fullName: order.customer.fullName,
+        phone: order.customer.phone,
+        email: order.customer.email || "",
+        address: order.customer.address,
+        city: order.customer.city,
+        state: order.customer.state,
+        notes: order.customer.notes || "",
+      },
+
+      items: items.map((item) => ({
+        id: item.id,
+        name: item.name,
+        image: item.image,
+        image_url: item.imageUrl,
+        size: item.size,
+        quantity: Number(item.quantity),
+        price: item.price,
+      })),
+
+      subtotal,
+      delivery_fee: deliveryFee,
+      total,
+      payment_method: order.paymentMethod,
+      status: "Pending",
+    };
+
+    console.log("Submitting order to Supabase:", {
+      reference: payload.reference,
+      itemCount: payload.items.length,
+      total: payload.total,
+    });
+
+    const { error: saveError } = await supabase
+      .from("orders")
+      .insert(payload);
+
+    if (saveError) {
+      console.error("SUPABASE ORDER ERROR:", {
+        message: saveError.message,
+        code: saveError.code,
+        details: saveError.details,
+        hint: saveError.hint,
+      });
+
+      // A duplicate reference may mean the order
+      // was saved during an earlier attempt.
+      // Do not assume success without verifying it.
+      throw saveError;
+    }
+
+    return true;
+  }
+
+  // =====================================
+  // SUBMIT ORDER AND OPEN WHATSAPP
+  // =====================================
+  async function submitOrder() {
+    if (saving || submitted) return;
+
     setError("");
 
-    if (!whatsappReady) {
+    if (!hasPrices) {
       setError(
-        "WhatsApp is not configured. Please check the business number in src/config/store.js."
+        "One or more sneaker prices are missing or invalid."
       );
       return;
     }
 
-    if (!hasPrices) {
+    if (!whatsappReady) {
       setError(
-        "Some product prices are missing. Please check your order."
+        "The store WhatsApp number is not configured correctly."
       );
       return;
     }
 
     if (isTransfer && !bankReady) {
       setError(
-        "Bank transfer details have not been configured."
+        "Bank transfer details are not configured."
       );
       return;
     }
@@ -206,39 +288,105 @@ export default function Payment() {
 
     if (!link) {
       setError(
-        "Unable to create the WhatsApp link."
+        "Unable to generate the WhatsApp order link."
       );
       return;
     }
 
-    window.location.assign(link);
-  }
-
-  // =====================================
-  // COPY BANK ACCOUNT NUMBER
-  // =====================================
-  async function copyAccountNumber() {
-    if (!bankReady) return;
+    setSaving(true);
 
     try {
-      await navigator.clipboard.writeText(
-        STORE.bank.accountNumber
+      // First save the order.
+      await saveOrderToSupabase();
+
+      // Only clear after successful database save.
+      clearCart();
+
+      // Remove the pending checkout record.
+      sessionStorage.removeItem(ORDER_KEY);
+
+      setWhatsappUrl(link);
+      setSubmitted(true);
+
+      // Redirect to WhatsApp.
+      window.location.assign(link);
+    } catch (err) {
+      console.error(
+        "ORDER SUBMISSION FAILED:",
+        err
       );
-      setCopied(true);
-    } catch {
+
+      // Show the real error during development.
+      // Use a generic customer-facing error
+      // before launching publicly.
       setError(
-        "Unable to copy the account number."
+        `Unable to save order: ${
+          err?.message || "Unknown error"
+        }${
+          err?.code
+            ? ` (Code: ${err.code})`
+            : ""
+        }`
       );
+    } finally {
+      setSaving(false);
     }
   }
 
+  // =====================================
+  // SUCCESS SCREEN
+  // =====================================
+  if (submitted) {
+    return (
+      <main className="checkout-page">
+        <section className="checkout-panel">
+          <h1>Order Saved Successfully!</h1>
+
+          <p>
+            Your order reference is:
+          </p>
+
+          <h2>{order.reference}</h2>
+
+          <p>
+            Your order has been saved and your
+            shopping basket has been cleared.
+          </p>
+
+          <p>
+            Please open WhatsApp and press Send
+            to notify our team.
+          </p>
+
+          <a
+            href={whatsappUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="checkout-btn"
+          >
+            Open WhatsApp Again →
+          </a>
+
+          <p>
+            <Link to="/">
+              Continue Shopping
+            </Link>
+          </p>
+        </section>
+      </main>
+    );
+  }
+
+  // =====================================
+  // ORDER REVIEW PAGE
+  // =====================================
   return (
     <main className="checkout-page">
       <Link
         to="/checkout"
         className="checkout-back"
       >
-        ← Edit Customer Details
+        ← Back to Checkout
       </Link>
 
       <div className="checkout-heading">
@@ -249,214 +397,85 @@ export default function Payment() {
         <h1>Complete Your Order</h1>
 
         <p>
-          Review your sneakers, prices,
-          delivery details and payment method.
+          Review your sneakers and delivery
+          details before submitting.
+        </p>
+
+        <p>
+          <strong>Order Reference:</strong>{" "}
+          {order.reference}
         </p>
       </div>
 
       <div className="checkout-layout">
         <div className="checkout-main">
-          {/* ORDER REFERENCE */}
-          <section className="checkout-panel">
-            <div className="checkout-section-title">
-              <span className="checkout-step">01</span>
-              <div>
-                <h2>Order Reference</h2>
-                <p>Keep this for enquiries.</p>
-              </div>
-            </div>
-
-            <div className="order-reference">
-              {order.reference}
-            </div>
-
-            <p className="checkout-notice">
-              Your order is not confirmed until
-              our team acknowledges it.
-            </p>
-          </section>
-
           {/* CUSTOMER DETAILS */}
           <section className="checkout-panel">
             <div className="checkout-section-title">
-              <span className="checkout-step">02</span>
+              <span className="checkout-step">
+                01
+              </span>
+
               <div>
                 <h2>Customer Details</h2>
-                <p>Review your delivery information.</p>
+                <p>Review your information.</p>
               </div>
             </div>
 
             <div className="review-details">
               <p>
                 <strong>Name:</strong>{" "}
-                {customer.fullName}
+                {order.customer.fullName}
               </p>
+
               <p>
                 <strong>Phone:</strong>{" "}
-                {customer.phone}
+                {order.customer.phone}
               </p>
+
               <p>
                 <strong>Email:</strong>{" "}
-                {customer.email}
+                {order.customer.email || "N/A"}
               </p>
+
               <p>
                 <strong>Address:</strong>{" "}
-                {customer.address}
+                {order.customer.address}
               </p>
+
               <p>
                 <strong>City:</strong>{" "}
-                {customer.city}
+                {order.customer.city}
               </p>
+
               <p>
                 <strong>State:</strong>{" "}
-                {customer.state}
+                {order.customer.state}
               </p>
-              {customer.notes && (
+
+              {order.customer.notes && (
                 <p>
                   <strong>Notes:</strong>{" "}
-                  {customer.notes}
+                  {order.customer.notes}
                 </p>
               )}
             </div>
           </section>
 
-          {/* ORDER / PAYMENT METHOD */}
-          {isTransfer ? (
-            <section className="checkout-panel">
-              <div className="checkout-section-title">
-                <span className="checkout-step">03</span>
-                <div>
-                  <h2>Bank Transfer</h2>
-                  <p>
-                    Transfer and submit confirmation.
-                  </p>
-                </div>
-              </div>
+          {/* SNEAKERS */}
+          <section className="checkout-panel">
+            <div className="checkout-section-title">
+              <span className="checkout-step">
+                02
+              </span>
 
-              {bankReady ? (
-                <div className="bank-details">
-                  <div>
-                    <small>Bank Name</small>
-                    <strong>
-                      {STORE.bank.name}
-                    </strong>
-                  </div>
-
-                  <div>
-                    <small>Account Name</small>
-                    <strong>
-                      {STORE.bank.accountName}
-                    </strong>
-                  </div>
-
-                  <div>
-                    <small>Account Number</small>
-                    <strong>
-                      {STORE.bank.accountNumber}
-                    </strong>
-                  </div>
-
-                  <button
-                    type="button"
-                    className="checkout-outline-btn"
-                    onClick={copyAccountNumber}
-                  >
-                    {copied
-                      ? "Account Number Copied ✓"
-                      : "Copy Account Number"}
-                  </button>
-                </div>
-              ) : (
-                <p className="checkout-warning">
-                  Bank details are not configured.
+              <div>
+                <h2>Sneakers Ordered</h2>
+                <p>
+                  Pictures and prices of your items.
                 </p>
-              )}
-
-              <div className="checkout-field">
-                <label htmlFor="transferReference">
-                  Transaction Reference (Optional)
-                </label>
-
-                <input
-                  id="transferReference"
-                  type="text"
-                  value={transferReference}
-                  onChange={(event) =>
-                    setTransferReference(
-                      event.target.value
-                    )
-                  }
-                  placeholder="Enter transaction reference"
-                />
               </div>
-
-              <p className="checkout-notice">
-                Payment is subject to manual
-                verification. Sending a reference
-                does not confirm payment.
-              </p>
-
-              <button
-                type="button"
-                className="checkout-btn"
-                onClick={openWhatsApp}
-              >
-                Confirm Transfer via WhatsApp →
-              </button>
-            </section>
-          ) : (
-            <section className="checkout-panel">
-              <div className="checkout-section-title">
-                <span className="checkout-step">03</span>
-                <div>
-                  <h2>Order via WhatsApp</h2>
-                  <p>
-                    Send your complete order to
-                    our team.
-                  </p>
-                </div>
-              </div>
-
-              <p className="checkout-notice">
-                Your WhatsApp message will include
-                your sneakers, prices, delivery
-                charge and total.
-              </p>
-
-              <button
-                type="button"
-                className="checkout-btn"
-                onClick={openWhatsApp}
-              >
-                Send Order via WhatsApp →
-              </button>
-
-              <p className="checkout-smallprint">
-                You must press Send in WhatsApp
-                to submit your order.
-              </p>
-            </section>
-          )}
-
-          {/* ERROR MESSAGE */}
-          {error && (
-            <p
-              className="checkout-warning"
-              role="alert"
-            >
-              {error}
-            </p>
-          )}
-        </div>
-
-        {/* ORDER BREAKDOWN */}
-        <aside className="checkout-summary">
-          <div className="checkout-panel">
-            <h2>Order Breakdown</h2>
-
-            <p className="summary-count">
-              Review your sneakers and final total.
-            </p>
+            </div>
 
             <div className="summary-products">
               {items.map((item) => (
@@ -465,45 +484,179 @@ export default function Payment() {
                   key={`${item.id}-${item.size}`}
                 >
                   <img
-                    src={getImageUrl(item.image)}
+                    src={item.imageUrl}
                     alt={item.name}
+                    style={{
+                      width: "110px",
+                      height: "110px",
+                      objectFit: "cover",
+                      borderRadius: "8px",
+                    }}
                   />
 
                   <div>
                     <strong>{item.name}</strong>
 
-                    <small>
-                      Size: EU {item.size}
-                    </small>
+                    <p>Size: EU {item.size}</p>
 
-                    <small>
+                    <p>
                       Quantity: {item.quantity}
-                    </small>
+                    </p>
 
-                    <small>
+                    <p>
                       Unit Price:{" "}
-                      {hasPrices
-                        ? formatMoney(item.price)
-                        : "To be confirmed"}
-                    </small>
+                      {formatMoney(item.price)}
+                    </p>
 
-                    <small>
+                    <p>
                       Item Total:{" "}
-                      {hasPrices
-                        ? formatMoney(
-                            item.price *
-                            Number(item.quantity)
-                          )
-                        : "To be confirmed"}
-                    </small>
+                      {formatMoney(
+                        item.price *
+                        Number(item.quantity)
+                      )}
+                    </p>
+
+                    {item.imageUrl && (
+                      <a
+                        href={item.imageUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                      >
+                        View Shoe Picture
+                      </a>
+                    )}
                   </div>
                 </div>
               ))}
             </div>
+          </section>
+
+          {/* PAYMENT */}
+          {isTransfer && (
+            <section className="checkout-panel">
+              <div className="checkout-section-title">
+                <span className="checkout-step">
+                  03
+                </span>
+
+                <div>
+                  <h2>Bank Transfer</h2>
+                  <p>
+                    Payment requires manual
+                    verification.
+                  </p>
+                </div>
+              </div>
+
+              {bankReady ? (
+                <div className="bank-details">
+                  <p>
+                    <strong>Bank:</strong>{" "}
+                    {STORE.bank.name}
+                  </p>
+
+                  <p>
+                    <strong>Account Name:</strong>{" "}
+                    {STORE.bank.accountName}
+                  </p>
+
+                  <p>
+                    <strong>Account Number:</strong>{" "}
+                    {STORE.bank.accountNumber}
+                  </p>
+
+                  <div className="checkout-field">
+                    <label htmlFor="transfer-ref">
+                      Transaction Reference
+                      (Optional)
+                    </label>
+
+                    <input
+                      id="transfer-ref"
+                      type="text"
+                      value={transferReference}
+                      onChange={(event) =>
+                        setTransferReference(
+                          event.target.value
+                        )
+                      }
+                      placeholder="Enter transfer reference"
+                    />
+                  </div>
+                </div>
+              ) : (
+                <p className="checkout-warning">
+                  Bank details are not configured.
+                </p>
+              )}
+            </section>
+          )}
+
+          {/* SUBMIT ORDER */}
+          <section className="checkout-panel">
+            <div className="checkout-section-title">
+              <span className="checkout-step">
+                {isTransfer ? "04" : "03"}
+              </span>
+
+              <div>
+                <h2>Submit Your Order</h2>
+                <p>
+                  Save your order and continue
+                  to WhatsApp.
+                </p>
+              </div>
+            </div>
+
+            <p className="checkout-notice">
+              Once your order is saved,
+              your basket will be cleared.
+              You must still send the prepared
+              WhatsApp message.
+            </p>
+
+            {error && (
+              <p
+                className="checkout-warning"
+                role="alert"
+                style={{
+                  color: "#b42318",
+                  padding: "12px",
+                  border: "1px solid #f1b0b7",
+                  borderRadius: "8px",
+                  overflowWrap: "anywhere",
+                }}
+              >
+                {error}
+              </p>
+            )}
+
+            <button
+              type="button"
+              className="checkout-btn"
+              onClick={submitOrder}
+              disabled={saving}
+            >
+              {saving
+                ? "Saving Your Order..."
+                : "Save Order & Open WhatsApp →"}
+            </button>
+          </section>
+        </div>
+
+        {/* ORDER SUMMARY */}
+        <aside className="checkout-summary">
+          <div className="checkout-panel">
+            <h2>Order Breakdown</h2>
+
+            <p className="summary-count">
+              Review your final total.
+            </p>
 
             <div className="order-breakdown">
               <div className="breakdown-row">
                 <span>Subtotal</span>
+
                 <strong>
                   {hasPrices
                     ? formatMoney(subtotal)
@@ -513,6 +666,7 @@ export default function Payment() {
 
               <div className="breakdown-row">
                 <span>Delivery Charge</span>
+
                 <strong>
                   {formatMoney(deliveryFee)}
                 </strong>
@@ -521,7 +675,8 @@ export default function Payment() {
               <div className="breakdown-divider" />
 
               <div className="breakdown-row breakdown-total">
-                <span>Order Total</span>
+                <span>Total</span>
+
                 <strong>
                   {hasPrices
                     ? formatMoney(total)

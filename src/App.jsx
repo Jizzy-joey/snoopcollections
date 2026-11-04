@@ -1,87 +1,52 @@
 
-import { useEffect } from "react";
-import {
-  Routes,
-  Route,
-  useLocation,
-  Link,
-} from "react-router-dom";
+import { Routes, Route } from "react-router-dom";
 
-import Navbar from "./components/Navbar";
 import Home from "./pages/Home";
 import ProductDetails from "./pages/ProductDetails";
 import Cart from "./pages/Cart";
 import Checkout from "./pages/Checkout";
 import Payment from "./pages/Payment";
 
+import AdminLogin from "./pages/AdminLogin";
+import AdminDashboard from "./pages/AdminDashboard";
+
+import Navbar from "./components/Navbar";
+
 import "./App.css";
 import "./Checkout.css";
 
-function ScrollManager() {
-  const { pathname, hash } = useLocation();
-
-  useEffect(() => {
-    if (hash) {
-      const timer = setTimeout(() => {
-        const section = document.getElementById(
-          hash.slice(1)
-        );
-
-        if (section) {
-          section.scrollIntoView({
-            behavior: "smooth",
-          });
-        }
-      }, 50);
-
-      return () => clearTimeout(timer);
-    }
-
-    window.scrollTo(0, 0);
-  }, [pathname, hash]);
-
-  return null;
-}
-
 export default function App() {
   return (
-    <div className="website">
-      <ScrollManager />
-
+    <>
       <Navbar />
 
       <Routes>
+        {/* Existing store pages */}
         <Route path="/" element={<Home />} />
-
         <Route
           path="/product/:id"
           element={<ProductDetails />}
         />
-
         <Route path="/cart" element={<Cart />} />
-
         <Route
           path="/checkout"
           element={<Checkout />}
         />
-
         <Route
           path="/payment"
           element={<Payment />}
         />
 
+        {/* New admin pages */}
         <Route
-          path="*"
-          element={
-            <main className="product-page">
-              <h1>Page Not Found</h1>
-              <Link to="/">
-                Return to Homepage
-              </Link>
-            </main>
-          }
+          path="/admin/login"
+          element={<AdminLogin />}
+        />
+        <Route
+          path="/admin"
+          element={<AdminDashboard />}
         />
       </Routes>
-    </div>
+    </>
   );
 }
