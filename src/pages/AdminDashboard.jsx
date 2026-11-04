@@ -7,6 +7,29 @@ import {
 import { supabase } from "../lib/supabase";
 import { formatMoney } from "../config/store";
 import "../Admin.css";
+import { getImageUrl } from "../utils/imageUrl";
+
+
+function getAdminImageUrl(item) {
+  // Use the image filename/path saved with the order.
+  const image = item?.image;
+
+  if (image) {
+    // If it is already a full URL, use it.
+    if (/^https?:\/\//i.test(image)) {
+      return image;
+    }
+
+    // Resolve local images using the current
+    // deployment's Vite base path.
+    return getImageUrl(image);
+  }
+
+  // Fall back to the original URL saved in Supabase.
+  return item?.image_url || "";
+}
+
+
 
 const STATUSES = [
   "Pending",
@@ -297,8 +320,9 @@ export default function AdminDashboard() {
                           rel="noopener noreferrer"
                         >
                           <img
-                            src={item.image_url}
+                            src={getAdminImageUrl(item)}
                             alt={item.name}
+                            loading="lazy"
                           />
                         </a>
                       )}
