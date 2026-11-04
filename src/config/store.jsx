@@ -5,7 +5,7 @@ export const STORE = {
   // ADD YOUR REAL WHATSAPP NUMBER HERE
   // Example: 2348012345678
   // Nigerian numbers: replace the first 0 with 234.
-  whatsappNumber: "+23480183320048",
+  whatsappNumber: "+2348183320048",
 
   // YOUR BUSINESS BANK DETAILS
   bank: {
