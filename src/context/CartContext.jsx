@@ -3,130 +3,186 @@ import {
   createContext,
   useContext,
   useEffect,
+  useMemo,
   useState,
 } from "react";
+import { shoes } from "../data/shoes";
 
 const CartContext = createContext(null);
+const CART_KEY = "snoopcollections-cart";
 
-// Load saved cart from browser storage
-function loadCart() {
+function getSavedCart() {
   try {
-    const savedCart = localStorage.getItem(
-      "snoopcollections-cart"
+    const saved = JSON.parse(
+      localStorage.getItem(CART_KEY) || "[]"
     );
-
-    if (!savedCart) return [];
-
-    const parsedCart = JSON.parse(savedCart);
-
-    return Array.isArray(parsedCart)
-      ? parsedCart
-      : [];
-  } catch (error) {
-    console.error("Error loading cart:", error);
+    return Array.isArray(saved) ? saved : [];
+  } catch {
     return [];
   }
 }
 
-export function CartProvider({ children }) {
-  const [cart, setCart] = useState(loadCart);
+function findShoe(id) {
+  return shoes.find(
+    (shoe) => String(shoe.id) === String(id)
+  );
+}
 
-  // Save cart whenever it changes
+// Always use the latest catalogue price.
+function refreshCart(cart) {
+  return cart
+    .map((item) => {
+      const shoe = findShoe(item.id);
+
+      if (!shoe) return null;
+
+      return {
+        id: shoe.id,
+        name: shoe.name,
+        image: shoe.image,
+        price: shoe.price,
+        size: item.size,
+        quantity: Math.max(
+          1,
+          Number(item.quantity) || 1
+        ),
+      };
+    })
+    .filter(Boolean);
+}
+
+export function CartProvider({ children }) {
+  const [cart, setCart] = useState(() =>
+    refreshCart(getSavedCart())
+  );
+
   useEffect(() => {
     localStorage.setItem(
-      "snoopcollections-cart",
+      CART_KEY,
       JSON.stringify(cart)
     );
   }, [cart]);
 
-  // Add product to cart
-  const addToCart = (shoe, size, quantity = 1) => {
-    setCart((previousCart) => {
-      const existingItem = previousCart.find(
+  function addToCart(shoe, size, quantity = 1) {
+    const amount = Math.max(
+      1,
+      Number(quantity) || 1
+    );
+
+    const currentShoe = findShoe(shoe.id) || shoe;
+
+    setCart((previous) => {
+      const updated = refreshCart(previous);
+
+      const existingIndex = updated.findIndex(
         (item) =>
-          item.id === shoe.id &&
-          item.size === size
+          String(item.id) ===
+            String(currentShoe.id) &&
+          String(item.size) === String(size)
       );
 
-      if (existingItem) {
-        return previousCart.map((item) =>
-          item.id === shoe.id &&
-          item.size === size
+      if (existingIndex !== -1) {
+        return updated.map((item, index) =>
+          index === existingIndex
             ? {
                 ...item,
-                quantity: item.quantity + quantity,
+                quantity: item.quantity + amount,
               }
             : item
         );
       }
 
       return [
-        ...previousCart,
+        ...updated,
         {
-          id: shoe.id,
-          name: shoe.name,
-          image: shoe.image,
+          id: currentShoe.id,
+          name: currentShoe.name,
+          image: currentShoe.image,
+          price: currentShoe.price,
           size,
-          quantity,
+          quantity: amount,
         },
       ];
     });
-  };
+  }
 
-  // Remove a product
-  const removeFromCart = (id, size) => {
-    setCart((previousCart) =>
-      previousCart.filter(
+  function removeFromCart(id, size) {
+    setCart((previous) =>
+      previous.filter(
         (item) =>
-          !(item.id === id && item.size === size)
+          !(
+            String(item.id) === String(id) &&
+            (size === undefined ||
+              String(item.size) === String(size))
+          )
       )
     );
-  };
+  }
 
-  // Increase or decrease quantity
-  const updateQuantity = (id, size, quantity) => {
-    if (quantity < 1) {
+  function updateQuantity(id, size, quantity) {
+    const amount = Number(quantity);
+
+    if (!Number.isFinite(amount)) return;
+
+    if (amount <= 0) {
       removeFromCart(id, size);
       return;
     }
 
-    setCart((previousCart) =>
-      previousCart.map((item) =>
-        item.id === id && item.size === size
-          ? { ...item, quantity }
+    setCart((previous) =>
+      previous.map((item) =>
+        String(item.id) === String(id) &&
+        String(item.size) === String(size)
+          ? {
+              ...item,
+              quantity: Math.max(
+                1,
+                Math.floor(amount)
+              ),
+            }
           : item
       )
     );
-  };
+  }
 
-  // Empty the cart
-  const clearCart = () => {
+  function clearCart() {
     setCart([]);
-  };
+  }
 
-  // Total number of items
   const cartCount = cart.reduce(
-    (total, item) => total + item.quantity,
+    (sum, item) => sum + item.quantity,
     0
   );
 
+  const cartTotal = cart.reduce(
+    (sum, item) =>
+      sum +
+      (typeof item.price === "number"
+        ? item.price * item.quantity
+        : 0),
+    0
+  );
+
+  const value = useMemo(
+    () => ({
+      cart,
+      cartCount,
+      cartTotal,
+      addToCart,
+      removeFromCart,
+      updateQuantity,
+      clearCart,
+    }),
+    [cart, cartCount, cartTotal]
+  );
+
   return (
-    <CartContext.Provider
-      value={{
-        cart,
-        cartCount,
-        addToCart,
-        removeFromCart,
-        updateQuantity,
-        clearCart,
-      }}
-    >
+    <CartContext.Provider value={value}>
       {children}
     </CartContext.Provider>
   );
 }
 
-// Custom hook for accessing the cart
 export function useCart() {
   const context = useContext(CartContext);
 

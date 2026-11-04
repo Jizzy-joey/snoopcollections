@@ -956,3 +956,9 @@ footer small {
     transition: none;
   }
 }
+.shoe-price {
+  font-size: 18px;
+  font-weight: 800;
+  color: #ed552b;
+  margin-top: 10px;
+}

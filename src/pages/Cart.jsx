@@ -1,6 +1,11 @@
 
 import { Link } from "react-router-dom";
 import { useCart } from "../context/CartContext";
+import {
+  STORE,
+  formatMoney,
+} from "../config/store";
+import { getImageUrl } from "../utils/imageUrl";
 
 export default function Cart() {
   const {
@@ -11,108 +16,240 @@ export default function Cart() {
     clearCart,
   } = useCart();
 
-  return (
-    <main className="cart-page">
-      <p className="eyebrow">YOUR SELECTION</p>
-      <h1>SHOPPING CART.</h1>
+  const hasPrices =
+    STORE.pricesEnabled &&
+    cart.length > 0 &&
+    cart.every(
+      (item) =>
+        typeof item.price === "number" &&
+        Number.isFinite(item.price) &&
+        item.price >= 0
+    );
 
-      {cart.length === 0 ? (
-        <div className="empty-cart">
-          <h2>Your cart is empty.</h2>
-          <p>Find your next favourite pair.</p>
-          <Link to="/#shop" className="primary-button">
-            Explore Collection →
+  const subtotal = hasPrices
+    ? cart.reduce(
+        (sum, item) =>
+          sum + item.price * item.quantity,
+        0
+      )
+    : null;
+
+  const total = hasPrices
+    ? subtotal + STORE.deliveryFee
+    : null;
+
+  if (cart.length === 0) {
+    return (
+      <main className="checkout-page">
+        <div className="checkout-empty">
+          <h1>Your Shopping Cart</h1>
+          <p>Your basket is currently empty.</p>
+
+          <Link to="/" className="checkout-btn">
+            Continue Shopping →
           </Link>
         </div>
-      ) : (
-        <>
-          <p className="cart-summary">
-            {cartCount} pair(s) in your cart
-          </p>
+      </main>
+    );
+  }
 
-          <div className="cart-items">
-            {cart.map((item) => (
-              <article
-                className="cart-item"
-                key={`${item.id}-${item.size}`}
-              >
-                <Link to={`/product/${item.id}`}>
-                  <img src={item.image} alt={item.name} />
-                </Link>
+  return (
+    <main className="checkout-page">
+      <Link to="/" className="checkout-back">
+        ← Continue Shopping
+      </Link>
 
-                <div className="cart-item-info">
-                  <Link to={`/product/${item.id}`}>
-                    <h2>{item.name}</h2>
-                  </Link>
+      <div className="checkout-heading">
+        <p className="checkout-eyebrow">
+          SNOOPCOLLECTIONS / SHOPPING CART
+        </p>
 
-                  <p>EU Size: {item.size}</p>
+        <h1>Your Shopping Cart</h1>
 
-                  <div className="quantity-control">
+        <p>
+          You have {cartCount} sneaker(s) in your
+          basket.
+        </p>
+      </div>
+
+      <div className="checkout-layout">
+        <div className="checkout-main">
+          <section className="checkout-panel">
+            <h2>Your Sneakers</h2>
+
+            <div className="cart-products">
+              {cart.map((item) => (
+                <div
+                  key={`${item.id}-${item.size}`}
+                  className="cart-item"
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "20px",
+                    padding: "20px 0",
+                    borderBottom: "1px solid #eee",
+                    flexWrap: "wrap",
+                  }}
+                >
+                  <img
+                    src={getImageUrl(item.image)}
+                    alt={item.name}
+                    style={{
+                      width: "110px",
+                      height: "110px",
+                      objectFit: "cover",
+                      borderRadius: "10px",
+                    }}
+                  />
+
+                  <div
+                    style={{
+                      flex: 1,
+                      minWidth: "170px",
+                    }}
+                  >
+                    <h3>{item.name}</h3>
+
+                    <p>Size: EU {item.size}</p>
+
+                    <p>
+                      Unit Price:{" "}
+                      <strong>
+                        {hasPrices
+                          ? formatMoney(item.price)
+                          : "To be confirmed"}
+                      </strong>
+                    </p>
+
+                    <div
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        gap: "12px",
+                        margin: "12px 0",
+                      }}
+                    >
+                      <button
+                        type="button"
+                        onClick={() =>
+                          updateQuantity(
+                            item.id,
+                            item.size,
+                            item.quantity - 1
+                          )
+                        }
+                        aria-label="Decrease quantity"
+                      >
+                        −
+                      </button>
+
+                      <strong>{item.quantity}</strong>
+
+                      <button
+                        type="button"
+                        onClick={() =>
+                          updateQuantity(
+                            item.id,
+                            item.size,
+                            item.quantity + 1
+                          )
+                        }
+                        aria-label="Increase quantity"
+                      >
+                        +
+                      </button>
+                    </div>
+
+                    <p>
+                      <strong>
+                        Item Total:{" "}
+                        {hasPrices
+                          ? formatMoney(
+                              item.price * item.quantity
+                            )
+                          : "To be confirmed"}
+                      </strong>
+                    </p>
+
                     <button
                       type="button"
                       onClick={() =>
-                        updateQuantity(
+                        removeFromCart(
                           item.id,
-                          item.size,
-                          item.quantity - 1
+                          item.size
                         )
                       }
-                      aria-label={`Decrease quantity of ${item.name}`}
+                      style={{
+                        color: "#d33",
+                        marginTop: "10px",
+                        cursor: "pointer",
+                      }}
                     >
-                      −
-                    </button>
-
-                    <span>{item.quantity}</span>
-
-                    <button
-                      type="button"
-                      onClick={() =>
-                        updateQuantity(
-                          item.id,
-                          item.size,
-                          item.quantity + 1
-                        )
-                      }
-                      aria-label={`Increase quantity of ${item.name}`}
-                    >
-                      +
+                      Remove Item
                     </button>
                   </div>
-
-                  <button
-                    type="button"
-                    className="remove-button"
-                    onClick={() =>
-                      removeFromCart(item.id, item.size)
-                    }
-                  >
-                    Remove item
-                  </button>
                 </div>
-              </article>
-            ))}
-          </div>
-
-          <div className="cart-actions">
-            <p>
-              Prices and checkout will be available once
-              product details are confirmed.
-            </p>
+              ))}
+            </div>
 
             <button
               type="button"
-              className="clear-cart-button"
+              className="checkout-outline-btn"
               onClick={clearCart}
+              style={{ marginTop: "20px" }}
             >
-              Clear Cart
+              Clear Basket
             </button>
+          </section>
+        </div>
 
-            <Link to="/#shop" className="primary-button">
-              Continue Shopping
+        <aside className="checkout-summary">
+          <div className="checkout-panel">
+            <h2>Order Summary</h2>
+
+            <div className="order-breakdown">
+              <div className="breakdown-row">
+                <span>Items</span>
+                <strong>{cartCount}</strong>
+              </div>
+
+              <div className="breakdown-row">
+                <span>Subtotal</span>
+                <strong>
+                  {hasPrices
+                    ? formatMoney(subtotal)
+                    : "To be confirmed"}
+                </strong>
+              </div>
+
+              <div className="breakdown-row">
+                <span>Delivery Charge</span>
+                <strong>
+                  {formatMoney(STORE.deliveryFee)}
+                </strong>
+              </div>
+
+              <div className="breakdown-divider" />
+
+              <div className="breakdown-row breakdown-total">
+                <span>Order Total</span>
+                <strong>
+                  {hasPrices
+                    ? formatMoney(total)
+                    : "To be confirmed"}
+                </strong>
+              </div>
+            </div>
+
+            <Link
+              to="/checkout"
+              className="checkout-btn"
+            >
+              Proceed to Checkout →
             </Link>
           </div>
-        </>
-      )}
+        </aside>
+      </div>
     </main>
   );
 }

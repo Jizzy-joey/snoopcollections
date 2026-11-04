@@ -2,6 +2,7 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { shoes } from "../data/shoes";
+import { formatMoney } from "../config/store";
 
 
 const heroSlides = [
@@ -158,6 +159,9 @@ export default function Home() {
         <div className="shoe-grid">
           {filteredShoes.map((shoe) => (
             <article className="shoe-card" key={shoe.id}>
+                <p className="shoe-price">
+                    {formatMoney(shoe.price)}
+                </p>
               <Link
                 to={`/product/${shoe.id}`}
                 className="shoe-image"

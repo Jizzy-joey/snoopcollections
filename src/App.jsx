@@ -11,10 +11,12 @@ import Navbar from "./components/Navbar";
 import Home from "./pages/Home";
 import ProductDetails from "./pages/ProductDetails";
 import Cart from "./pages/Cart";
+import Checkout from "./pages/Checkout";
+import Payment from "./pages/Payment";
 
 import "./App.css";
+import "./Checkout.css";
 
-// Handles scrolling when navigating between pages
 function ScrollManager() {
   const { pathname, hash } = useLocation();
 
@@ -46,10 +48,8 @@ export default function App() {
     <div className="website">
       <ScrollManager />
 
-      {/* Navbar appears on every page */}
       <Navbar />
 
-      {/* Website pages */}
       <Routes>
         <Route path="/" element={<Home />} />
 
@@ -61,11 +61,23 @@ export default function App() {
         <Route path="/cart" element={<Cart />} />
 
         <Route
+          path="/checkout"
+          element={<Checkout />}
+        />
+
+        <Route
+          path="/payment"
+          element={<Payment />}
+        />
+
+        <Route
           path="*"
           element={
             <main className="product-page">
-              <h1>Page not found</h1>
-              <Link to="/">Return Home</Link>
+              <h1>Page Not Found</h1>
+              <Link to="/">
+                Return to Homepage
+              </Link>
             </main>
           }
         />
