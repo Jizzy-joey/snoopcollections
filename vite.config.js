@@ -1,7 +1,16 @@
+
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 
-export default defineConfig({
-  plugins: [react()],
-  base: "/snoopcollections/",
+export default defineConfig(({ mode }) => {
+  return {
+    plugins: [react()],
+
+    // GitHub Pages uses /snoopcollections/
+    // Vercel uses /
+    base:
+      mode === "github"
+        ? "/snoopcollections/"
+        : "/",
+  };
 });

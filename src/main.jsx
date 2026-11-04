@@ -2,16 +2,16 @@
 import React from "react";
 import ReactDOM from "react-dom/client";
 import { BrowserRouter } from "react-router-dom";
-
-import { CartProvider } from "./context/CartContext";
 import App from "./App";
-import "./index.css";
+import { CartProvider } from "./context/CartContext";
+
+const basename = import.meta.env.BASE_URL;
 
 ReactDOM.createRoot(
   document.getElementById("root")
 ).render(
   <React.StrictMode>
-    <BrowserRouter basename="/snoopcollections">
+    <BrowserRouter basename={basename}>
       <CartProvider>
         <App />
       </CartProvider>
