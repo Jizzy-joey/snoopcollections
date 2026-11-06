@@ -6,6 +6,8 @@ import ProductDetails from "./pages/ProductDetails";
 import Cart from "./pages/Cart";
 import Checkout from "./pages/Checkout";
 import Payment from "./pages/Payment";
+import About from "./pages/About";
+import Shop from "./pages/Shop";
 
 import AdminLogin from "./pages/AdminLogin";
 import AdminDashboard from "./pages/AdminDashboard";
@@ -36,6 +38,9 @@ export default function App() {
           path="/payment"
           element={<Payment />}
         />
+        <Route path="/about" element={<About />} />
+        
+        <Route path="/shop" element={<Shop />} />
 
         {/* New admin pages */}
         <Route

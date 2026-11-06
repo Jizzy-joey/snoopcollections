@@ -1,0 +1,192 @@
+
+.snoop-contact {
+  background: #101010;
+  color: #fff;
+  padding: 110px 8%;
+}
+
+.snoop-contact * {
+  box-sizing: border-box;
+}
+
+.snoop-contact-inner {
+  max-width: 1350px;
+  margin: 0 auto;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 80px;
+  align-items: start;
+}
+
+.snoop-contact-eyebrow {
+  color: #aaa;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 2px;
+}
+
+.snoop-contact-intro h2 {
+  font-size: clamp(45px, 5vw, 80px);
+  font-weight: 900;
+  letter-spacing: -3px;
+  line-height: 1;
+  margin: 30px 0;
+}
+
+.snoop-contact-intro > p {
+  color: #bcbcbc;
+  font-size: 17px;
+  line-height: 1.8;
+  max-width: 480px;
+}
+
+.snoop-contact-methods {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 15px;
+  margin-top: 40px;
+}
+
+.snoop-contact-method {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 25px;
+  background: #242424;
+  color: #fff;
+  text-decoration: none;
+  transition: 0.3s ease;
+  min-width: 0;
+}
+
+.snoop-contact-method:hover {
+  background: #333;
+  transform: translateY(-4px);
+}
+
+.snoop-contact-method-icon {
+  font-size: 28px;
+}
+
+.snoop-contact-method strong {
+  font-size: 13px;
+  letter-spacing: 1px;
+}
+
+.snoop-contact-method small {
+  color: #aaa;
+  overflow-wrap: anywhere;
+}
+
+.snoop-contact-form-wrap {
+  background: #fff;
+  color: #111;
+  padding: 45px;
+}
+
+.snoop-contact-form-wrap h3 {
+  font-size: 25px;
+  font-weight: 900;
+  margin: 0 0 10px;
+}
+
+.snoop-contact-form-wrap > p {
+  font-size: 14px;
+  color: #666;
+  line-height: 1.6;
+  margin-bottom: 30px;
+}
+
+.snoop-contact-form-wrap form {
+  display: flex;
+  flex-direction: column;
+}
+
+.snoop-contact-form-wrap label {
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 1px;
+  margin: 15px 0 9px;
+}
+
+.snoop-contact-form-wrap input,
+.snoop-contact-form-wrap textarea {
+  width: 100%;
+  padding: 15px;
+  border: 1px solid #ddd;
+  border-radius: 0;
+  background: #fafafa;
+  color: #111;
+  font: inherit;
+  font-size: 14px;
+  outline: none;
+}
+
+.snoop-contact-form-wrap input:focus,
+.snoop-contact-form-wrap textarea:focus {
+  border-color: #111;
+}
+
+.snoop-contact-form-wrap textarea {
+  resize: vertical;
+}
+
+.snoop-contact-form-wrap button {
+  margin-top: 25px;
+  padding: 18px;
+  background: #111;
+  color: #fff;
+  border: none;
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 1px;
+  transition: 0.3s ease;
+}
+
+.snoop-contact-form-wrap button:hover {
+  background: #333;
+}
+
+.snoop-contact-form-wrap button:disabled {
+  background: #777;
+  cursor: not-allowed;
+}
+
+.snoop-contact-error {
+  color: #b42318;
+  font-size: 13px;
+}
+
+.snoop-contact-note {
+  color: #777;
+  font-size: 12px;
+  line-height: 1.6;
+  margin-top: 15px;
+}
+
+@media (max-width: 900px) {
+  .snoop-contact-inner {
+    grid-template-columns: 1fr;
+    gap: 45px;
+  }
+}
+
+@media (max-width: 600px) {
+  .snoop-contact {
+    padding: 75px 6%;
+  }
+
+  .snoop-contact-intro h2 {
+    font-size: 45px;
+    letter-spacing: -2px;
+  }
+
+  .snoop-contact-methods {
+    grid-template-columns: 1fr;
+  }
+
+  .snoop-contact-form-wrap {
+    padding: 25px;
+  }
+}

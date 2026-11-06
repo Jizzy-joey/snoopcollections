@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { shoes } from "../data/shoes";
 import { formatMoney } from "../config/store";
+import Contact from "../components/Contact";
 
 
 const heroSlides = [
@@ -157,7 +158,8 @@ export default function Home() {
         />
 
         <div className="shoe-grid">
-          {filteredShoes.map((shoe) => (
+          {shoes.slice(0, 8).map((shoe) => (
+            // Keep your existing sneaker card exactly as it is)}
             <article className="shoe-card" key={shoe.id}>
                 <p className="shoe-price">
                     {formatMoney(shoe.price)}
@@ -196,6 +198,12 @@ export default function Home() {
           </p>
         )}
       </section>
+      <div className="home-shop-more">
+        <Link to="/shop" className="home-shop-more-btn">
+        SHOP OUR COLLECTIONS ↗
+        </Link>
+        </div>
+        <Contact />
 
       {/* ABOUT SECTION */}
       <section className="about" id="about">

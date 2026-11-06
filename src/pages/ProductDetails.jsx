@@ -39,7 +39,7 @@ export default function ProductDetails() {
 
   return (
     <main className="product-page">
-      <Link to="/#shop" className="back-link">
+      <Link to="/shop" className="back-link">
         ← Back to collection
       </Link>
 

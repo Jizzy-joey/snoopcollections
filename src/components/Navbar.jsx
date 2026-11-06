@@ -13,8 +13,8 @@ export default function Navbar() {
 
       <nav aria-label="Main navigation">
         <NavLink to="/">Home</NavLink>
-        <Link to="/#shop">Shop</Link>
-        <Link to="/#about">About</Link>
+        <NavLink to="/shop">Shop</NavLink>
+        <NavLink to="/about">About</NavLink>
       </nav>
 
       <Link to="/cart" className="cart-nav-link">
